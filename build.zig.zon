@@ -1,6 +1,6 @@
 .{
     .name = .libvbyte,
-    .version = "0.0.1",
+    .version = "0.0.2",
     .dependencies = .{
         .upstream = .{
             .url = "git+https://github.com/cruppstahl/libvbyte#611e0115fc61570c0548ce01d6feeea4b52372b6",

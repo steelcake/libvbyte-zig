@@ -68,7 +68,7 @@ fn Unsorted(comptime T: type) type {
                 compressed_len <= libvbyte.compress_bound(T, MAX_NUM_INTS),
             );
 
-            libvbyte.uncompress_unsorted(
+            libvbyte.decompress_unsorted(
                 T,
                 ctx.compressed[0..compressed_len],
                 ctx.output[0..in.len],
@@ -102,19 +102,18 @@ fn Sorted(comptime T: type, comptime valid_input: bool) type {
                 compressed_len <= libvbyte.compress_bound(T, MAX_NUM_INTS),
             );
 
-            libvbyte.uncompress_sorted(
+            libvbyte.decompress_sorted(
                 T,
                 ctx.compressed[0..compressed_len],
                 ctx.output[0..in.len],
             );
 
-            // Don't expect valid output if the input is invalid.
-            // Just expect it to not crash before this point.
-            if (valid_input) {
-                std.debug.assert(
-                    std.mem.eql(T, in, ctx.output[0..in.len]),
-                );
-            }
+            // expect valid output even if the input is unsorted, the library seems to work ok in any case.
+            // if (valid_input) {
+            std.debug.assert(
+                std.mem.eql(T, in, ctx.output[0..in.len]),
+            );
+            // }
         }
     };
 }

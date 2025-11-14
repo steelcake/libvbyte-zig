@@ -112,7 +112,7 @@ pub fn compress_sorted(comptime T: type, in: []const T, out: []u8) usize {
     };
 }
 
-pub fn uncompress_sorted(comptime T: type, in: []const u8, out: []T) void {
+pub fn decompress_sorted(comptime T: type, in: []const u8, out: []T) void {
     const n_read = switch (T) {
         u32 => vbyte_uncompress_sorted32(in.ptr, out.ptr, 0, out.len),
         u64 => vbyte_uncompress_sorted64(in.ptr, out.ptr, 0, out.len),
@@ -132,7 +132,7 @@ pub fn compress_unsorted(comptime T: type, in: []const T, out: []u8) usize {
     };
 }
 
-pub fn uncompress_unsorted(comptime T: type, in: []const u8, out: []T) void {
+pub fn decompress_unsorted(comptime T: type, in: []const u8, out: []T) void {
     const n_read = switch (T) {
         u32 => vbyte_uncompress_unsorted32(in.ptr, out.ptr, out.len),
         u64 => vbyte_uncompress_unsorted64(in.ptr, out.ptr, out.len),
