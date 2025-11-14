@@ -1,0 +1,19 @@
+.{
+    .name = .libvbyte,
+    .version = "0.0.1",
+    .dependencies = .{
+        .upstream = .{
+            .url = "git+https://github.com/cruppstahl/libvbyte#611e0115fc61570c0548ce01d6feeea4b52372b6",
+            .hash = "N-V-__8AALKFAgBzqgRPAXJw3YwgYVx4g0wH2_Yzfsau_qJC",
+        },
+    },
+    .fingerprint = 0x73629de7cecaceeb,
+    .minimum_zig_version = "0.16.0-dev.732+2f3234c76",
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "LICENSE",
+        "README.md",
+        "src",
+    },
+}
