@@ -40,19 +40,27 @@ fn Context(comptime T: type) type {
     };
 }
 
+fn read_input(comptime T: type, typed_input: []T, input: []const u8) []T {
+    std.debug.assert(typed_input.len == MAX_NUM_INTS);
+
+    const input_num_ints = input.len / @sizeOf(T);
+    const num_ints = @min(input_num_ints, MAX_NUM_INTS);
+    const num_bytes = @sizeOf(T) * num_ints;
+    @memcpy(@as([]u8, @ptrCast(typed_input))[0..num_bytes], input[0..num_bytes]);
+
+    return typed_input[0..num_ints];
+}
+
 fn Unsorted(comptime T: type) type {
     return struct {
         const size = @sizeOf(T);
 
         pub fn fuzz_one(ctx: Context(T), input: []const u8) anyerror!void {
-            const input_num_ints = input.len / size;
-            const num_ints = @min(input_num_ints, MAX_NUM_INTS);
-            const num_bytes = size * num_ints;
-            @memcpy(@as([]u8, @ptrCast(ctx.input))[0..num_bytes], input[0..num_bytes]);
+            const in = read_input(T, ctx.input, input);
 
             const compressed_len = libvbyte.compress_unsorted(
                 T,
-                ctx.input[0..num_ints],
+                in,
                 ctx.compressed,
             );
 
@@ -63,49 +71,53 @@ fn Unsorted(comptime T: type) type {
             libvbyte.uncompress_unsorted(
                 T,
                 ctx.compressed[0..compressed_len],
-                ctx.output[0..num_ints],
+                ctx.output[0..in.len],
             );
 
             std.debug.assert(
-                std.mem.eql(T, ctx.input[0..num_ints], ctx.output[0..num_ints]),
+                std.mem.eql(T, in, ctx.output[0..in.len]),
             );
         }
     };
 }
 
-// fn Sorted(comptime T: type) type {
-//     return struct {
-//         const size = @sizeOf(T);
+fn Sorted(comptime T: type, comptime valid_input: bool) type {
+    return struct {
+        const size = @sizeOf(T);
 
-//         const compress = switch (T) {
-//             u32 => libvbyte.vbyte_compress_sorted32,
-//             u64 => libvbyte.vbyte_compress_sorted64,
-//             else => @compileError("unsupported type"),
-//         };
+        pub fn fuzz_one(ctx: Context(T), input: []const u8) anyerror!void {
+            const in = read_input(T, ctx.input, input);
 
-//         const uncompress = switch (T) {
-//             u32 => libvbyte.vbyte_uncompress_unsorted32,
-//             u64 => libvbyte.vbyte_uncompress_unsorted64,
-//             else => @compileError("unsupported type"),
-//         };
+            if (valid_input) {
+                std.mem.sortUnstable(T, in, {}, std.sort.asc(T));
+            }
 
-//         pub fn fuzz_one(ctx: Context(T), input: []const u8) anyerror!void {
-//             const input_num_ints = input.len / size;
-//             const num_ints = @min(input_num_ints, MAX_NUM_INTS);
-//             const num_bytes = size * num_ints;
-//             @memcpy(@as([]u8, @ptrCast(ctx.input))[0..num_bytes], input[0..num_bytes]);
+            const compressed_len = libvbyte.compress_unsorted(
+                T,
+                in,
+                ctx.compressed,
+            );
 
-//             const compressed_len = compress(ctx.input.ptr, ctx.compressed.ptr, num_ints);
+            std.debug.assert(
+                compressed_len <= libvbyte.compress_bound(T, MAX_NUM_INTS),
+            );
 
-//             std.debug.assert(compressed_len <= libvbyte.compress_bound(T, MAX_NUM_INTS));
+            libvbyte.uncompress_unsorted(
+                T,
+                ctx.compressed[0..compressed_len],
+                ctx.output[0..in.len],
+            );
 
-//             const n_read = uncompress(ctx.compressed.ptr, ctx.output.ptr, num_ints);
-//             std.debug.assert(n_read == compressed_len);
-
-//             std.debug.assert(std.mem.eql(T, ctx.input[0..num_ints], ctx.output[0..num_ints]));
-//         }
-//     };
-// }
+            // Don't expect valid output if the input is invalid.
+            // Just expect it to not crash before this point.
+            if (!valid_input) {
+                std.debug.assert(
+                    std.mem.eql(T, in, ctx.output[0..in.len]),
+                );
+            }
+        }
+    };
+}
 
 const Ctx32 = Context(u32);
 const Ctx64 = Context(u64);
@@ -120,4 +132,28 @@ test "unsorted_64" {
     var ctx = Ctx64.init();
     defer ctx.deinit();
     try std.testing.fuzz(ctx, Unsorted(u64).fuzz_one, .{});
+}
+
+test "sorted_32" {
+    var ctx = Ctx32.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx, Sorted(u32, true).fuzz_one, .{});
+}
+
+test "sorted_64" {
+    var ctx = Ctx64.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx, Sorted(u64, true).fuzz_one, .{});
+}
+
+test "sorted_32_invalid" {
+    var ctx = Ctx32.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx, Sorted(u32, false).fuzz_one, .{});
+}
+
+test "sorted_64_invalid" {
+    var ctx = Ctx64.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx, Sorted(u64, false).fuzz_one, .{});
 }
