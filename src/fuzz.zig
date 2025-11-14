@@ -118,6 +118,24 @@ fn Sorted(comptime T: type, comptime valid_input: bool) type {
     };
 }
 
+fn Garbage(comptime T: type, sorted: bool) type {
+    const decompress = if (sorted) libvbyte.decompress_sorted else libvbyte.decompress_unsorted;
+
+    return struct {
+        pub fn fuzz_one(ctx: []T, input: []const u8) anyerror!void {
+            const output = ctx;
+
+            if (input.len < 4) {
+                decompress(T, input, output);
+            } else {
+                const n_ints: u32 = @bitCast(@as([*]const [4]u8, @ptrCast(input.ptr))[0]);
+                const num_ints = @min(@as(usize, n_ints), MAX_NUM_INTS);
+                decompress(T, input[4..], output[0..num_ints]);
+            }
+        }
+    };
+}
+
 const Ctx32 = Context(u32);
 const Ctx64 = Context(u64);
 
@@ -155,4 +173,28 @@ test "sorted_64_invalid" {
     var ctx = Ctx64.init();
     defer ctx.deinit();
     try std.testing.fuzz(ctx, Sorted(u64, false).fuzz_one, .{});
+}
+
+test "sorted_32_garbage" {
+    var ctx = Ctx32.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx.input, Garbage(u32, true).fuzz_one, .{});
+}
+
+test "sorted_64_garbage" {
+    var ctx = Ctx64.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx.input, Garbage(u64, true).fuzz_one, .{});
+}
+
+test "unsorted_32_garbage" {
+    var ctx = Ctx32.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx.input, Garbage(u32, false).fuzz_one, .{});
+}
+
+test "unsorted_64_garbage" {
+    var ctx = Ctx64.init();
+    defer ctx.deinit();
+    try std.testing.fuzz(ctx.input, Garbage(u64, false).fuzz_one, .{});
 }
