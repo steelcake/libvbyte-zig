@@ -68,7 +68,12 @@ pub extern fn vbyte_uncompress_unsorted64(in: [*]const u8, out: [*]u64, length: 
 /// or 0.
 ///
 /// Returns the number of compressed bytes processed.
-pub extern fn vbyte_uncompress_sorted32(in: [*]const u8, out: [*]u32, previous: u32, length: usize,) usize;
+pub extern fn vbyte_uncompress_sorted32(
+    in: [*]const u8,
+    out: [*]u32,
+    previous: u32,
+    length: usize,
+) usize;
 
 /// Uncompresses a sequence of |length| 64bit unsigned integers at |in|
 /// and stores the result in |out|.
@@ -78,4 +83,18 @@ pub extern fn vbyte_uncompress_sorted32(in: [*]const u8, out: [*]u32, previous: 
 /// or 0.
 ///
 /// Returns the number of compressed bytes processed.
-pub extern fn vbyte_uncompress_sorted64(in: [*]const u8, out: [*]u64, previous: u64, length: usize,) usize;
+pub extern fn vbyte_uncompress_sorted64(
+    in: [*]const u8,
+    out: [*]u64,
+    previous: u64,
+    length: usize,
+) usize;
+
+/// Upper bound of bytes needed on the compression output buffer
+pub fn compress_bound(comptime T: type, length: usize) usize {
+    return switch (T) {
+        u32 => (@sizeOf(u32) + 1) * length,
+        u64 => (@sizeOf(u64) + 2) * length,
+        else => @compileError("unsupported type"),
+    };
+}
