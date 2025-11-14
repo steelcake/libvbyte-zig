@@ -16,7 +16,10 @@ fn Context(comptime T: type) type {
         pub fn init() Context(T) {
             const input = page_allocator.alloc(T, MAX_NUM_INTS) catch unreachable;
             const output = page_allocator.alloc(T, MAX_NUM_INTS) catch unreachable;
-            const compressed = page_allocator.alloc(u8, libvbyte.compress_bound(T, MAX_NUM_INTS)) catch unreachable;
+            const compressed = page_allocator.alloc(
+                u8,
+                libvbyte.compress_bound(T, MAX_NUM_INTS),
+            ) catch unreachable;
 
             return .{
                 .input = input,
@@ -41,35 +44,68 @@ fn Unsorted(comptime T: type) type {
     return struct {
         const size = @sizeOf(T);
 
-        const compress = switch (T) {
-            u32 => libvbyte.vbyte_compress_unsorted32,
-            u64 => libvbyte.vbyte_compress_unsorted64,
-            else => @compileError("unsupported type"),
-        };
-
-        const uncompress = switch (T) {
-            u32 => libvbyte.vbyte_uncompress_unsorted32,
-            u64 => libvbyte.vbyte_uncompress_unsorted64,
-            else => @compileError("unsupported type"),
-        };
-
         pub fn fuzz_one(ctx: Context(T), input: []const u8) anyerror!void {
-            const input_num_ints = input.len / size * size;
+            const input_num_ints = input.len / size;
             const num_ints = @min(input_num_ints, MAX_NUM_INTS);
             const num_bytes = size * num_ints;
             @memcpy(@as([]u8, @ptrCast(ctx.input))[0..num_bytes], input[0..num_bytes]);
 
-            const compressed_len = compress(ctx.input.ptr, ctx.compressed.ptr, num_ints);
+            const compressed_len = libvbyte.compress_unsorted(
+                T,
+                ctx.input[0..num_ints],
+                ctx.compressed,
+            );
 
-            std.debug.assert(compressed_len <= libvbyte.compress_bound(T, MAX_NUM_INTS));
+            std.debug.assert(
+                compressed_len <= libvbyte.compress_bound(T, MAX_NUM_INTS),
+            );
 
-            const n_read = uncompress(ctx.compressed.ptr, ctx.output.ptr, num_ints);
-            std.debug.assert(n_read == num_bytes);
+            libvbyte.uncompress_unsorted(
+                T,
+                ctx.compressed[0..compressed_len],
+                ctx.output[0..num_ints],
+            );
 
-            std.debug.assert(std.mem.eql(T, ctx.input[0..num_ints], ctx.output[0..num_ints]));
+            std.debug.assert(
+                std.mem.eql(T, ctx.input[0..num_ints], ctx.output[0..num_ints]),
+            );
         }
     };
 }
+
+// fn Sorted(comptime T: type) type {
+//     return struct {
+//         const size = @sizeOf(T);
+
+//         const compress = switch (T) {
+//             u32 => libvbyte.vbyte_compress_sorted32,
+//             u64 => libvbyte.vbyte_compress_sorted64,
+//             else => @compileError("unsupported type"),
+//         };
+
+//         const uncompress = switch (T) {
+//             u32 => libvbyte.vbyte_uncompress_unsorted32,
+//             u64 => libvbyte.vbyte_uncompress_unsorted64,
+//             else => @compileError("unsupported type"),
+//         };
+
+//         pub fn fuzz_one(ctx: Context(T), input: []const u8) anyerror!void {
+//             const input_num_ints = input.len / size;
+//             const num_ints = @min(input_num_ints, MAX_NUM_INTS);
+//             const num_bytes = size * num_ints;
+//             @memcpy(@as([]u8, @ptrCast(ctx.input))[0..num_bytes], input[0..num_bytes]);
+
+//             const compressed_len = compress(ctx.input.ptr, ctx.compressed.ptr, num_ints);
+
+//             std.debug.assert(compressed_len <= libvbyte.compress_bound(T, MAX_NUM_INTS));
+
+//             const n_read = uncompress(ctx.compressed.ptr, ctx.output.ptr, num_ints);
+//             std.debug.assert(n_read == compressed_len);
+
+//             std.debug.assert(std.mem.eql(T, ctx.input[0..num_ints], ctx.output[0..num_ints]));
+//         }
+//     };
+// }
 
 const Ctx32 = Context(u32);
 const Ctx64 = Context(u64);
