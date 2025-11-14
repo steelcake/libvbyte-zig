@@ -1,6 +1,6 @@
 # libvbyte-zig
 
-Zig bindings for [libvbyte])(https://github.com/cruppstahl/libvbyte).
+Zig bindings for [libvbyte](https://github.com/cruppstahl/libvbyte).
 
 Licensing
 ------------------------
